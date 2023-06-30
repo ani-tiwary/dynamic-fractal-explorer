@@ -1,4 +1,4 @@
-# interactive-mandelbrot
+# interactive-mandelbrot-julia
 ## Arguments
 ### Mandelbrot
 `mandelbrot`
