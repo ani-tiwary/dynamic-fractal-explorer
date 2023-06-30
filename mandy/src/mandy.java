@@ -67,23 +67,11 @@ public class mandy extends JPanel {
                     z = (z.multiply(z)).add(c);
                     iterations++;
                 }
-                int color = Color.HSBtoRGB(iterations / 256f, 1, iterations / (iterations + 8f));
+                int color = Color.HSBtoRGB(iterations / 256f, 1, iterations / (iterations + 18f));
                 image.setRGB(x, y, color);
             }
         }
         g2d.drawImage(image, 0, 0, null);
-        if (selectionStartX != selectionEndX && selectionStartY != selectionEndY) {
-            int startX = (int) map(Math.min(selectionStartX, selectionEndX), minreal, maxreal, 0, width);
-            int startY = (int) map(Math.min(selectionStartY, selectionEndY), minimag, maximag, 0, height);
-            int endX = (int) map(Math.max(selectionStartX, selectionEndX), minreal, maxreal, 0, width);
-            int endY = (int) map(Math.max(selectionStartY, selectionEndY), minimag, maximag, 0, height);
-
-            g2d.setColor(new Color(255, 255, 255, 100));
-            g2d.fillRect(startX, startY, endX - startX, endY - startY);
-
-            g2d.setColor(Color.WHITE);
-            g2d.drawRect(startX, startY, endX - startX, endY - startY);
-        }
     }
     @Override
     protected void paintComponent(Graphics g) {
