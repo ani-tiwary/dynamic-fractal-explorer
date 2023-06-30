@@ -2,14 +2,14 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.event.*;
-public class mandy extends JPanel {
-    int width = 800;
-    int height = 800;
+public class mandy extends JPanel{
+    int width = 1000;
+    int height = 1000;
     double minreal = -2.0;
     double maxreal = 1.0;
-    double minimag = -1.5;
-    double maximag = 1.5;
-    int maxiter = 1000;
+    double minimag = -2;
+    double maximag = 2;
+    int maxiter = 1024;
     double selectionStartX;
     double selectionStartY;
     double selectionEndX;
@@ -82,7 +82,7 @@ public class mandy extends JPanel {
         return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
     }
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Mandy Fractal");
+        JFrame frame = new JFrame("mandelbrot set");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(false);
         frame.getContentPane().add(new mandy(), BorderLayout.CENTER);
