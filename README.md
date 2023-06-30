@@ -1,3 +1,3 @@
 # interactive-mandelbrot
-view mandelbrot fractal  
+view mandelbrot fractal <br>
 drag mouse to change viewing window (zoom-in)
