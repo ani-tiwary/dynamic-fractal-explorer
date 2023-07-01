@@ -3,19 +3,20 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.event.*;
 public class julia extends JPanel{
-    private int width = 1000;
-    private int height = 1000;
+    private static final int numthreads = Runtime.getRuntime().availableProcessors();
+    private final int width = 1000;
+    private final int height = 1000;
     private double minreal = -1.75;
     private double maxreal = 1.75;
     private double minimag = -1.25;
-    private double maximag = 1.25f;
-    private int maxiter = 1024;
+    private double maximag = 1.25;
     private double selectionStartX;
     private double selectionStartY;
     private double selectionEndX;
     private double selectionEndY;
-    private static double a;
-    private static double b;
+    private final double a;
+    private final double b;
+    private boolean undoRequested = false;
     public julia(double a, double b) {
         this.a = a;
         this.b = b;
@@ -23,75 +24,132 @@ public class julia extends JPanel{
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                selectionStartX = map(e.getX(), 0, width, minreal, maxreal);
-                selectionStartY = map(e.getY(), 0, height, minimag, maximag);
+                if (e.getButton() == MouseEvent.BUTTON1) {
+                    selectionStartX = map(e.getX(), width, minreal, maxreal);
+                    selectionStartY = map(e.getY(), height, minimag, maximag);
+                } else if (e.getButton() == MouseEvent.BUTTON3) {
+                    undoRequested = true;
+                    repaint();
+                }
             }
-
             @Override
             public void mouseReleased(MouseEvent e) {
-                selectionEndX = map(e.getX(), 0, width, minreal, maxreal);
-                selectionEndY = map(e.getY(), 0, height, minimag, maximag);
-
-                zoomIn();
+                if (e.getButton() == MouseEvent.BUTTON1) {
+                    selectionEndX = map(e.getX(), width, minreal, maxreal);
+                    selectionEndY = map(e.getY(), height, minimag, maximag);
+                    zoomIn();
+                }
             }
         });
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                selectionEndX = map(e.getX(), 0, WIDTH, minreal, maxreal);
-                selectionEndY = map(e.getY(), 0, HEIGHT, minimag, maximag);
-
-                repaint();
+                if (e.getModifiersEx() == MouseEvent.BUTTON1_DOWN_MASK) {
+                    selectionEndX = map(e.getX(), width, minreal, maxreal);
+                    selectionEndY = map(e.getY(), height, minimag, maximag);
+                    repaint();
+                }
             }
         });
     }
     private void zoomIn() {
+        double screenAspectRatio = (double) width / height;
         double newMinReal = Math.min(selectionStartX, selectionEndX);
         double newMaxReal = Math.max(selectionStartX, selectionEndX);
         double newMinImaginary = Math.min(selectionStartY, selectionEndY);
         double newMaxImaginary = Math.max(selectionStartY, selectionEndY);
+        double currentAspectRatio = (newMaxReal - newMinReal) / (newMaxImaginary - newMinImaginary);
+        if (currentAspectRatio > screenAspectRatio) {
+            double center = (newMinReal + newMaxReal) / 2.0;
+            double realHeight = (newMaxImaginary - newMinImaginary) * screenAspectRatio;
+            newMinReal = center - realHeight / 2.0;
+            newMaxReal = center + realHeight / 2.0;
+        } else {
+            double center = (newMinImaginary + newMaxImaginary) / 2.0;
+            double imagWidth = (newMaxReal - newMinReal) / screenAspectRatio;
+            newMinImaginary = center - imagWidth / 2.0;
+            newMaxImaginary = center + imagWidth / 2.0;
+        }
         minreal = newMinReal;
         maxreal = newMaxReal;
         minimag = newMinImaginary;
         maximag = newMaxImaginary;
         repaint();
+        System.out.println("Real Width: " + Math.abs(minreal - maxreal));
+        System.out.println("Imaginary Height: " + Math.abs(minimag - maximag));
+    }
+    private void resetZoom() {
+        minreal = -1.75;
+        maxreal = 1.75;
+        minimag = -1.25;
+        maximag = 1.25;
+        repaint();
+        System.out.println("Fractal reset to original view");
     }
     private void drawJulia(Graphics2D g2d) {
-        int width = getWidth();
-        int height = getHeight();
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Complex constant = new Complex(-0.8, 0.2);
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                double real = map(x, 0, width, minreal, maxreal);
-                double imaginary = map(y, 0, height, minimag, maximag);
-                Complex z = new Complex(real, imaginary);
-                int iterations = 0;
-                while (z.abs() < 2 && iterations < maxiter) {
-                    z = (z.multiply(z)).add(constant);
-                    iterations++;
+        Thread[] threads = new Thread[numthreads];
+        int chunkWidth = width / numthreads;
+        for (int i = 0; i < numthreads; i++) {
+            int startx = i * chunkWidth;
+            int endx = startx + chunkWidth;
+            JuliaRenderer renderer = new JuliaRenderer(startx, endx, image);
+            threads[i] = new Thread(renderer);
+            threads[i].start();
+        }
+        try {
+            for (Thread thread : threads) {
+                if (thread != null) {
+                    thread.join();
                 }
-                int color = Color.HSBtoRGB(iterations / 256f, 1, iterations / (iterations + 18f));
-                image.setRGB(x, y, color);
             }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         g2d.drawImage(image, 0, 0, null);
+    }
+    private class JuliaRenderer implements Runnable{
+        private final int startx;
+        private final int endx;
+        private final BufferedImage image;
+        public JuliaRenderer(int startx, int endx, BufferedImage image) {
+            this.startx = startx;
+            this.endx = endx;
+            this.image = image;
+        }
+        @Override
+        public void run(){
+            //System.out.println("startx = "  + startx + ", endx: " + endx);  //temporary test for redundancy in threads' operations
+            Complex constant = new Complex(a, b);
+            for(int x = startx; x < endx; x++){
+                for(int y = 0; y < height; y++){
+                    double real = map(x, width, minreal, maxreal);
+                    double imaginary = map(y, height, minimag, maximag);
+                    Complex z = new Complex(real, imaginary);
+                    int iterations = 0;
+                    int maxiter = 1024;
+                    while (z.abs() < 2 && iterations < maxiter) {
+                        z = z.multiply(z).add(constant);
+                        iterations++;
+                    }
+                    int color = Color.HSBtoRGB(iterations / 256f, 1, iterations / (iterations + 18f));
+                    image.setRGB(x, y, color);
+                }
+            }
+        }
     }
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        drawJulia((Graphics2D) g);
+        Graphics2D g2d = (Graphics2D) g;
+        if (undoRequested) {
+            resetZoom();
+            undoRequested = false;
+        } else {
+            drawJulia(g2d);
+        }
     }
-    private double map(double value, double start1, double stop1, double start2, double stop2) {
-        return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
-    }
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("julia set");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setResizable(false);
-        frame.getContentPane().add(new julia(a, b), BorderLayout.CENTER);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+    private double map(double value, double stop1, double start2, double stop2) {
+        return start2 + (value / stop1) * (stop2 - start2);
     }
 }
