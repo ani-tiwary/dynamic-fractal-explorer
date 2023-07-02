@@ -1,8 +1,10 @@
 import javax.swing.*;
 public class mandyInit extends JFrame{
     mandy panel;
-    mandyInit(){
-        panel = new mandy();
+    private int a;
+    private int b;
+    mandyInit(int a, int b){
+        panel = new mandy(a, b);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.add(panel);
         this.pack();

@@ -4,8 +4,8 @@ import java.awt.image.BufferedImage;
 import java.awt.event.*;
 public class julia extends JPanel{
     private static final int numthreads = Runtime.getRuntime().availableProcessors();
-    private final int width = 1000;
-    private final int height = 1000;
+    private int width = 1000;
+    private int height = 1000;
     private double minreal = -1.75;
     private double maxreal = 1.75;
     private double minimag = -1.25;
@@ -14,12 +14,17 @@ public class julia extends JPanel{
     private double selectionStartY;
     private double selectionEndX;
     private double selectionEndY;
-    private final double a;
-    private final double b;
+    private final double c;
+    private final double d;
     private boolean undoRequested = false;
-    public julia(double a, double b) {
-        this.a = a;
-        this.b = b;
+    public void setDim(int a, int b){
+        width = a;
+        height = b;
+    }
+    public julia(int a, int b, double c, double d) {
+        this.c = c;
+        this.d = d;
+        setDim(a, b);
         setPreferredSize(new Dimension(width, height));
         addMouseListener(new MouseAdapter() {
             @Override
@@ -120,7 +125,7 @@ public class julia extends JPanel{
         @Override
         public void run(){
             //System.out.println("startx = "  + startx + ", endx: " + endx);  //temporary test for redundancy in threads' operations
-            Complex constant = new Complex(a, b);
+            Complex constant = new Complex(c, d);
             for(int x = startx; x < endx; x++){
                 for(int y = 0; y < height; y++){
                     double real = map(x, width, minreal, maxreal);

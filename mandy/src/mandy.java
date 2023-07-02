@@ -4,8 +4,8 @@ import java.awt.image.BufferedImage;
 import java.awt.event.*;
 public class mandy extends JPanel{
     private static final int numthreads = Runtime.getRuntime().availableProcessors();
-    private final int width = 1000;
-    private final int height = 1000;
+    private int width = 1000;
+    private int height = 1000;
     private double minreal = -2.0;
     private double maxreal = 1.0;
     private double minimag = -2;
@@ -15,7 +15,12 @@ public class mandy extends JPanel{
     private double selectionEndX;
     private double selectionEndY;
     private boolean undoRequested = false;
-    public mandy() {
+    public void setDim(int a, int b){
+        width = a;
+        height = b;
+    }
+    public mandy(int a, int b) {
+        setDim(a, b);
         setPreferredSize(new Dimension(width, height));
         addMouseListener(new MouseAdapter() {
             @Override
