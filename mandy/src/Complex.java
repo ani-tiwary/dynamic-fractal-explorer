@@ -18,4 +18,8 @@ public class Complex {
     public double abs() {
         return Math.sqrt(real * real + imaginary * imaginary);
     }
+    @Override
+    public String toString() {
+        return "Complex{" + "real=" + real + ", imaginary=" + imaginary + '}';
+    }
 }

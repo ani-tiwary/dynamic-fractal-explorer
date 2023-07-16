@@ -80,8 +80,9 @@ public class julia extends JPanel{
         minimag = newMinImaginary;
         maximag = newMaxImaginary;
         repaint();
-        System.out.println("Real Width: " + Math.abs(minreal - maxreal));
-        System.out.println("Imaginary Height: " + Math.abs(minimag - maximag));
+        String idk = " - "; if(maximag > 0){idk = " + ";}
+        String idk2 = " - "; if(minimag > 0){idk = " + ";}
+        System.out.println("Current coordinates: " + minreal + idk + Math.abs(maximag) + "i  |  " + maxreal + idk2 + Math.abs(minimag) + "i");
     }
     private void resetZoom() {
         minreal = -1.75;
