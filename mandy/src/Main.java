@@ -3,8 +3,8 @@ import java.awt.*;
 public class Main {
     public static void main(String[] args) {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        int width = (int)screenSize.getWidth() - 200;
-        int height = (int)screenSize.getHeight() - 100;
+        int width = (int)screenSize.getWidth() - 100;
+        int height = (int)screenSize.getHeight() - 50;
         if (args[0].startsWith("m")) {
             initMandy(width, height);
         } else if (args[0].startsWith("j")) {
