@@ -5,14 +5,14 @@ public class Complex {
         this.real = real;
         this.imaginary = imaginary;
     }
-    public Complex add(Complex theotherone) {
-        double realSum = this.real + theotherone.real;
-        double imaginarySum = this.imaginary + theotherone.imaginary;
+    public Complex add(Complex other) {
+        double realSum = this.real + other.real;
+        double imaginarySum = this.imaginary + other.imaginary;
         return new Complex(realSum, imaginarySum);
     }
-    public Complex multiply(Complex theotherone) {
-        double realProduct = this.real * theotherone.real - this.imaginary * theotherone.imaginary;
-        double imaginaryProduct = this.real * theotherone.imaginary + this.imaginary * theotherone.real;
+    public Complex multiply(Complex other) {
+        double realProduct = this.real * other.real - this.imaginary * other.imaginary;
+        double imaginaryProduct = this.real * other.imaginary + this.imaginary * other.real;
         return new Complex(realProduct, imaginaryProduct);
     }
     public double abs() {
