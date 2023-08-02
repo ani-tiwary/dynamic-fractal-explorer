@@ -1,4 +1,5 @@
 # interactive-mandelbrot-julia
+Interactive viewer for the fractals created by the Mandelbrot and Julia sets. Supports zooming in, resetting view, and returning coordinates in the complex plane.
 ## Arguments
 ### Mandelbrot
 `mandelbrot`
