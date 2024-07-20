@@ -16,7 +16,7 @@
             "request": "launch",
             "mainClass": "Main",
             "projectName": "interactive-mandelbrot-julia_814af96b",
-            "args": "j -0.54 0.54"
+            "args": "m"
         }
     ]
 }
