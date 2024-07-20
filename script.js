@@ -1,7 +1,7 @@
 const canvas = document.getElementById('fractalCanvas');
 const ctx = canvas.getContext('2d');
-const width = screen.width;
-const height = screen.height;
+const width = screen.width / 2;
+const height = screen.width / 2;
 canvas.width = width;
 canvas.height = height;
 canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto;";
@@ -95,6 +95,10 @@ canvas.addEventListener('wheel', (event) => {
     centerY += (complex.imag - centerY) * (1 - 1 / 1.1);
 
     drawFractal();
+});
+
+canvas.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
 });
 
 document.getElementById('fractalType').addEventListener('change', (event) => {
