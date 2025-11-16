@@ -1,165 +1,249 @@
 const canvas = document.getElementById('fractalCanvas');
-        const ctx = canvas.getContext('2d');
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto;";
+const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
-        let fractalType = 'julia';
-        let cReal = -0.54;
-        let cImag = 0.54;
-        let zoom = 1;
-        let centerX = 0;
-        let centerY = 0;
+if (!gl) {
+    alert('WebGL not supported. Please use a modern browser.');
+}
 
-        let isDragging = false;
-        let lastX, lastY;
-        let isInteracting = false;
-        let renderTimeout;
+const width = window.innerWidth;
+const height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto;";
 
-        function mapToComplex(x, y) {
-            const real = (x - width / 2) / (width / 4 * zoom) + centerX;
-            const imag = (y - height / 2) / (height / 4 * zoom) + centerY;
-            return { real, imag };
+gl.viewport(0, 0, width, height);
+
+// Vertex shader - simple full-screen quad
+const vertexShaderSource = `
+    attribute vec2 a_position;
+    void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+`;
+
+// Fragment shader - fractal computation
+const fragmentShaderSource = `
+    precision highp float;
+    uniform vec2 u_resolution;
+    uniform float u_zoom;
+    uniform vec2 u_center;
+    uniform vec2 u_c;
+    uniform int u_fractalType;
+    uniform int u_maxIterations;
+    
+    void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution;
+        vec2 c;
+        vec2 z;
+        
+        // Map screen coordinates to complex plane
+        float aspect = u_resolution.x / u_resolution.y;
+        vec2 complexCoord = (uv - 0.5) * vec2(aspect, 1.0) * 4.0 / u_zoom + u_center;
+        
+        if (u_fractalType == 0) {
+            // Julia Set
+            c = u_c;
+            z = complexCoord;
+        } else {
+            // Mandelbrot Set
+            c = complexCoord;
+            z = vec2(0.0, 0.0);
         }
-
-        function juliaSet(x, y) {
-            let real = x;
-            let imag = y;
-            let iteration = 0;
-            const maxIteration = 100;
-            while (iteration < maxIteration && real * real + imag * imag < 4) {
-                const tempReal = real * real - imag * imag + cReal;
-                imag = 2 * real * imag + cImag;
-                real = tempReal;
-                iteration++;
-            }
-            return iteration;
-        }
-
-        function mandelbrotSet(x, y) {
-            let real = 0;
-            let imag = 0;
-            let iteration = 0;
-            const maxIteration = 100;
-            while (iteration < maxIteration && real * real + imag * imag < 4) {
-                const tempReal = real * real - imag * imag + x;
-                imag = 2 * real * imag + y;
-                real = tempReal;
-                iteration++;
-            }
-            return iteration;
-        }
-
-        function drawFractal(lowRes = false) {
-            const step = lowRes ? 4 : 1;
-            const imageData = ctx.createImageData(width, height);
-            for (let y = 0; y < height; y += step) {
-                for (let x = 0; x < width; x += step) {
-                    const complex = mapToComplex(x, y);
-                    const iteration = fractalType === 'julia' ? 
-                        juliaSet(complex.real, complex.imag) : 
-                        mandelbrotSet(complex.real, complex.imag);
-                    const color = iteration === 100 ? 0 : 255 * Math.sqrt(iteration / 100);
-                    for (let dy = 0; dy < step && y + dy < height; dy++) {
-                        for (let dx = 0; dx < step && x + dx < width; dx++) {
-                            const index = ((y + dy) * width + (x + dx)) * 4;
-                            imageData.data[index] = color;
-                            imageData.data[index + 1] = color;
-                            imageData.data[index + 2] = color;
-                            imageData.data[index + 3] = 255;
-                        }
-                    }
+        
+        int iterations = u_maxIterations;
+        for (int i = 0; i < 1000; i++) {
+            if (i < u_maxIterations) {
+                if (dot(z, z) > 4.0) {
+                    iterations = i;
+                } else {
+                    float x = (z.x * z.x - z.y * z.y) + c.x;
+                    float y = (z.x * z.y * 2.0) + c.y;
+                    z = vec2(x, y);
                 }
             }
-            ctx.putImageData(imageData, 0, 0);
         }
+        
+        float color = iterations == u_maxIterations ? 0.0 : sqrt(float(iterations) / float(u_maxIterations));
+        gl_FragColor = vec4(color, color, color, 1.0);
+    }
+`;
 
-        function startInteraction() {
-            isInteracting = true;
-            drawFractal(true);
-        }
+function createShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+    
+    return shader;
+}
 
-        function endInteraction() {
-            isInteracting = false;
-            clearTimeout(renderTimeout);
-            renderTimeout = setTimeout(() => drawFractal(false), 200);
-        }
+function createProgram(gl, vertexShader, fragmentShader) {
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Program linking error:', gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+    }
+    
+    return program;
+}
 
-        canvas.addEventListener('mousedown', (event) => {
-            if (event.button === 0) { 
-                isDragging = true;
-                lastX = event.clientX;
-                lastY = event.clientY;
-                startInteraction();
-            }
-        });
+const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+const program = createProgram(gl, vertexShader, fragmentShader);
 
-        canvas.addEventListener('mousemove', (event) => {
-            if (isDragging) {
-                const dx = event.clientX - lastX;
-                const dy = event.clientY - lastY;
-                centerX -= dx / (width / 4 * zoom);
-                centerY -= dy / (height / 4 * zoom);
-                lastX = event.clientX;
-                lastY = event.clientY;
-                startInteraction();
-            } else if (event.buttons === 2 && fractalType === 'julia') {
-                const rect = canvas.getBoundingClientRect();
-                const mouseX = event.clientX - rect.left;
-                const mouseY = event.clientY - rect.top;
-                const complex = mapToComplex(mouseX, mouseY);
-                cReal = complex.real;
-                cImag = complex.imag;
-                startInteraction();
-            }
-        });
+// Create full-screen quad
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+const positions = [
+    -1, -1,
+     1, -1,
+    -1,  1,
+    -1,  1,
+     1, -1,
+     1,  1,
+];
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
-        canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            endInteraction();
-        });
+// Get attribute and uniform locations
+const positionLocation = gl.getAttribLocation(program, 'a_position');
+const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+const zoomLocation = gl.getUniformLocation(program, 'u_zoom');
+const centerLocation = gl.getUniformLocation(program, 'u_center');
+const cLocation = gl.getUniformLocation(program, 'u_c');
+const fractalTypeLocation = gl.getUniformLocation(program, 'u_fractalType');
+const maxIterationsLocation = gl.getUniformLocation(program, 'u_maxIterations');
 
-        canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-            endInteraction();
-        });
+let fractalType = 0; // 0 = julia, 1 = mandelbrot
+let cReal = -0.54;
+let cImag = 0.54;
+let zoom = 1;
+let centerX = 0;
+let centerY = 0;
+let maxIterations = 100;
 
-        canvas.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
-            const complex = mapToComplex(mouseX, mouseY);
+let isDragging = false;
+let lastX, lastY;
 
-            if (event.deltaY < 0) {
-                zoom *= 1.1;
-            } else {
-                zoom /= 1.1;
-            }
+function mapToComplex(x, y) {
+    const aspect = width / height;
+    const real = (x / width - 0.5) * aspect * 4.0 / zoom + centerX;
+    const imag = (y / height - 0.5) * 4.0 / zoom + centerY;
+    return { real, imag };
+}
 
-            centerX += (complex.real - centerX) * (1 - 1 / 1.1);
-            centerY += (complex.imag - centerY) * (1 - 1 / 1.1);
+function render() {
+    gl.useProgram(program);
+    
+    // Set up attributes
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    
+    // Set uniforms
+    gl.uniform2f(resolutionLocation, width, height);
+    gl.uniform1f(zoomLocation, zoom);
+    gl.uniform2f(centerLocation, centerX, centerY);
+    gl.uniform2f(cLocation, cReal, cImag);
+    gl.uniform1i(fractalTypeLocation, fractalType);
+    gl.uniform1i(maxIterationsLocation, maxIterations);
+    
+    // Clear and draw
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
 
-            startInteraction();
-            endInteraction();
-        });
+canvas.addEventListener('mousedown', (event) => {
+    if (event.button === 0) {
+        isDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+    }
+});
 
-        canvas.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
-        });
+canvas.addEventListener('mousemove', (event) => {
+    if (isDragging) {
+        const dx = event.clientX - lastX;
+        const dy = event.clientY - lastY;
+        const aspect = width / height;
+        centerX -= dx / width * aspect * 4.0 / zoom;
+        centerY += dy / height * 4.0 / zoom; // Fixed: changed from -= to +=
+        lastX = event.clientX;
+        lastY = event.clientY;
+        render();
+    } else if (event.buttons === 2 && fractalType === 0) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        const complex = mapToComplex(mouseX, mouseY);
+        cReal = complex.real;
+        cImag = complex.imag;
+        render();
+    }
+});
 
-        document.getElementById('fractalType').addEventListener('change', (event) => {
-            fractalType = event.target.value;
-            zoom = 1;
-            centerX = 0;
-            centerY = 0;
-            if (fractalType === 'julia') {
-                cReal = -0.54;
-                cImag = 0.54;
-            }
-            drawFractal(false);
-        });
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+});
 
-        drawFractal(false);
+canvas.addEventListener('mouseleave', () => {
+    isDragging = false;
+});
+
+canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // Get the complex coordinate at the mouse position before zooming
+    const aspect = width / height;
+    const complexX = (mouseX / width - 0.5) * aspect * 4.0 / zoom + centerX;
+    const complexY = (mouseY / height - 0.5) * 4.0 / zoom + centerY;
+    
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+    zoom *= zoomFactor;
+    
+    // Adjust center so the point under the cursor stays fixed
+    centerX = complexX - (mouseX / width - 0.5) * aspect * 4.0 / zoom;
+    centerY = complexY - (mouseY / height - 0.5) * 4.0 / zoom;
+    
+    render();
+});
+
+canvas.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+});
+
+window.addEventListener('resize', () => {
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    gl.viewport(0, 0, newWidth, newHeight);
+    render();
+});
+
+document.getElementById('fractalType').addEventListener('change', (event) => {
+    fractalType = event.target.value === 'julia' ? 0 : 1;
+    zoom = 1;
+    centerX = 0;
+    centerY = 0;
+    if (fractalType === 0) {
+        cReal = -0.54;
+        cImag = 0.54;
+    }
+    render();
+});
+
+render();
