@@ -358,8 +358,8 @@ function smoothMoveTo(sceneNameOrX, targetCenterY, targetZoom, duration = 2000) 
         finalDuration = duration;
     }
     
-    // If current zoom is > 2 and we're zooming out, first zoom out to target zoom at current position
-    if (zoom > 2.0 && finalTargetZoom < zoom) {
+    // If current zoom is > 2, first go back to pos0's zoom level (for both zooming in and out)
+    if (zoom > 2.0) {
         movementNeedsReset = true;
         // Store original target for after reset
         movementOriginalTarget = {
@@ -368,19 +368,26 @@ function smoothMoveTo(sceneNameOrX, targetCenterY, targetZoom, duration = 2000) 
             zoom: finalTargetZoom,
             duration: finalDuration
         };
-        // Zoom out to target zoom at current position (don't change x,y)
-        movementStartZoom = zoom;
-        movementStartCenterX = centerX;
-        movementStartCenterY = centerY;
-        movementTargetZoom = finalTargetZoom; // Zoom to target zoom level instead of default
-        movementTargetCenterX = centerX; // Keep current position
-        movementTargetCenterY = centerY; // Keep current position
-        movementAnimationDuration = 500; // Quick reset
-        movementPhase = 'zoom'; // Zoom out first (position stays constant)
-        movementAnimationStartTime = performance.now();
-        isAnimatingMovement = true;
-        animateMovement();
-        return; // Will continue to target position after reset completes
+        // Find pos0 to get its zoom level
+        const pos0Scene = sceneCoordinates && sceneCoordinates.find(s => s.name === 'pos0');
+        if (pos0Scene) {
+            // Zoom to pos0's zoom level at current position (don't change x,y)
+            movementStartZoom = zoom;
+            movementStartCenterX = centerX;
+            movementStartCenterY = centerY;
+            movementTargetZoom = pos0Scene.zoom; // Zoom to pos0's zoom level first
+            movementTargetCenterX = centerX; // Keep current position
+            movementTargetCenterY = centerY; // Keep current position
+            movementAnimationDuration = 500; // Quick reset
+            movementPhase = 'zoom'; // Zoom to pos0 first (position stays constant)
+            movementAnimationStartTime = performance.now();
+            isAnimatingMovement = true;
+            animateMovement();
+            return; // Will continue to target position after reset completes
+        } else {
+            // If pos0 not found, fall back to original behavior
+            console.warn('pos0 scene not found, proceeding without reset');
+        }
     }
     
     // Store starting values
