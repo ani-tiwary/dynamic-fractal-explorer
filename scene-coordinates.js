@@ -15,6 +15,12 @@ var sceneCoordinates = [
         centerX: -0.6619150588774977,
         centerY: 0.4626763853121446,
         zoom: 6252.914748397133
+    },
+    {
+        name: "pos2",
+        centerX: -0.7510280100616008,
+        centerY: 0.04104642517631003,
+        zoom: 888.1995418015389
     }
     // Add more scene coordinates here as needed
     // Example:

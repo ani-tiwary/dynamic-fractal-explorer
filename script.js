@@ -82,6 +82,8 @@ const fragmentShaderSource = `
     
     // High precision Mandelbrot (used at high zoom)
     int mandelbrot_double(vec2 c_single, vec2 centerHigh) {
+        // Reconstruct c with high precision
+        // c_single already includes u_center, so we add the high precision correction
         vec2 c_real = vec2(c_single.x, 0.0);
         vec2 c_imag = vec2(c_single.y, 0.0);
         c_real = dd_add(c_real, vec2(centerHigh.x, 0.0));
@@ -94,13 +96,16 @@ const fragmentShaderSource = `
             if (i >= u_maxIterations) break;
             if (dd_mag2(z_real, z_imag) > 4.0) return i;
             
+            // z = z^2 + c using double-double arithmetic
             vec2 z_real_sq = dd_sqr(z_real);
             vec2 z_imag_sq = dd_sqr(z_imag);
             vec2 z_real_imag = dd_mul(z_real, z_imag);
             
+            // real part: z_real^2 - z_imag^2 + c_real
             vec2 real_diff = dd_add(z_real_sq, vec2(-z_imag_sq.x, -z_imag_sq.y));
             z_real = dd_add(real_diff, c_real);
             
+            // imag part: 2 * z_real * z_imag + c_imag
             vec2 imag_prod = dd_add(z_real_imag, z_real_imag);
             z_imag = dd_add(imag_prod, c_imag);
         }
@@ -119,34 +124,82 @@ const fragmentShaderSource = `
             iterations = mandelbrot_single(c);
         }
         
-        // Create enhanced grayscale gradient with more variation
+        // Enhanced grayscale gradient with rich gray variations
         // Points in the set (max iterations) = black
-        // Points that escaped early = white, escaped late = dark gray
+        // Points that escaped get various shades of gray based on iteration count
         float color;
         if (iterations == u_maxIterations) {
             color = 0.0; // Black for points in the set
         } else {
-            // Enhanced gradient with more contrast and variation
+            // Normalize iteration count
             float normalized = float(iterations) / float(u_maxIterations);
             
-            // Use a more complex function for better color distribution
-            // Creates multiple bands of gray for more visual interest
-            float band1 = smoothstep(0.0, 0.3, normalized);
-            float band2 = smoothstep(0.3, 0.6, normalized);
-            float band3 = smoothstep(0.6, 0.9, normalized);
+            // Create many distinct gray bands with smooth transitions
+            // More bands in darker ranges for richer black/gray variation
+            float gray;
             
-            // Combine bands with different weights for more variation
-            float combined = (band1 * 0.4 + band2 * 0.35 + band3 * 0.25);
+            // Use a piecewise function with many more gray levels
+            if (normalized < 0.05) {
+                // Very light gray
+                gray = mix(0.98, 0.92, normalized / 0.05);
+            } else if (normalized < 0.1) {
+                // Light gray
+                gray = mix(0.92, 0.85, (normalized - 0.05) / 0.05);
+            } else if (normalized < 0.15) {
+                // Light-medium gray
+                gray = mix(0.85, 0.78, (normalized - 0.1) / 0.05);
+            } else if (normalized < 0.22) {
+                // Medium-light gray
+                gray = mix(0.78, 0.68, (normalized - 0.15) / 0.07);
+            } else if (normalized < 0.3) {
+                // Medium gray
+                gray = mix(0.68, 0.58, (normalized - 0.22) / 0.08);
+            } else if (normalized < 0.38) {
+                // Medium gray (darker)
+                gray = mix(0.58, 0.48, (normalized - 0.3) / 0.08);
+            } else if (normalized < 0.46) {
+                // Medium-dark gray
+                gray = mix(0.48, 0.38, (normalized - 0.38) / 0.08);
+            } else if (normalized < 0.54) {
+                // Dark gray
+                gray = mix(0.38, 0.28, (normalized - 0.46) / 0.08);
+            } else if (normalized < 0.62) {
+                // Dark gray (darker)
+                gray = mix(0.28, 0.20, (normalized - 0.54) / 0.08);
+            } else if (normalized < 0.70) {
+                // Very dark gray
+                gray = mix(0.20, 0.14, (normalized - 0.62) / 0.08);
+            } else if (normalized < 0.78) {
+                // Very dark gray (darker)
+                gray = mix(0.14, 0.09, (normalized - 0.70) / 0.08);
+            } else if (normalized < 0.85) {
+                // Nearly black
+                gray = mix(0.09, 0.05, (normalized - 0.78) / 0.07);
+            } else if (normalized < 0.91) {
+                // Almost black
+                gray = mix(0.05, 0.025, (normalized - 0.85) / 0.06);
+            } else if (normalized < 0.96) {
+                // Very nearly black
+                gray = mix(0.025, 0.01, (normalized - 0.91) / 0.05);
+            } else {
+                // Extremely dark, almost pure black
+                gray = mix(0.01, 0.002, (normalized - 0.96) / 0.04);
+            }
             
-            // Apply additional contrast enhancement
-            combined = pow(combined, 0.7); // Slight gamma adjustment for more contrast
+            // Add subtle banding/texture for more visual interest
+            // Creates fine detail in the gray transitions
+            float banding = sin(normalized * 30.0) * 0.025;
+            gray = clamp(gray + banding, 0.0, 1.0);
             
-            // Invert so early escape = white, late escape = dark gray
-            color = 1.0 - combined;
+            // Add micro-variation for smoother transitions and more texture
+            float microVariation = sin(normalized * 60.0 + float(iterations) * 0.15) * 0.012;
+            gray = clamp(gray + microVariation, 0.0, 1.0);
             
-            // Add subtle banding effect for more texture
-            float banding = sin(normalized * 15.0) * 0.05;
-            color = clamp(color + banding, 0.0, 1.0);
+            // Add additional fine detail variation
+            float fineDetail = sin(normalized * 100.0 + float(iterations) * 0.3) * 0.008;
+            gray = clamp(gray + fineDetail, 0.0, 1.0);
+            
+            color = gray;
         }
         
         gl_FragColor = vec4(color, color, color, 1.0);
@@ -305,8 +358,8 @@ function smoothMoveTo(sceneNameOrX, targetCenterY, targetZoom, duration = 2000) 
         finalDuration = duration;
     }
     
-    // If current zoom is > 2, first quickly zoom out to default zoom at current position
-    if (zoom > 2.0) {
+    // If current zoom is > 2 and we're zooming out, first zoom out to target zoom at current position
+    if (zoom > 2.0 && finalTargetZoom < zoom) {
         movementNeedsReset = true;
         // Store original target for after reset
         movementOriginalTarget = {
@@ -315,23 +368,19 @@ function smoothMoveTo(sceneNameOrX, targetCenterY, targetZoom, duration = 2000) 
             zoom: finalTargetZoom,
             duration: finalDuration
         };
-        // Find default scene to get default zoom
-        const defaultScene = sceneCoordinates && sceneCoordinates.find(s => s.name === 'pos0');
-        if (defaultScene) {
-            // Zoom out to default zoom at current position (don't change x,y)
-            movementStartZoom = zoom;
-            movementStartCenterX = centerX;
-            movementStartCenterY = centerY;
-            movementTargetZoom = defaultScene.zoom;
-            movementTargetCenterX = centerX; // Keep current position
-            movementTargetCenterY = centerY; // Keep current position
-            movementAnimationDuration = 500; // Quick reset
-            movementPhase = 'zoom'; // Zoom out first (position stays constant)
-            movementAnimationStartTime = performance.now();
-            isAnimatingMovement = true;
-            animateMovement();
-            return; // Will continue to target after reset completes
-        }
+        // Zoom out to target zoom at current position (don't change x,y)
+        movementStartZoom = zoom;
+        movementStartCenterX = centerX;
+        movementStartCenterY = centerY;
+        movementTargetZoom = finalTargetZoom; // Zoom to target zoom level instead of default
+        movementTargetCenterX = centerX; // Keep current position
+        movementTargetCenterY = centerY; // Keep current position
+        movementAnimationDuration = 500; // Quick reset
+        movementPhase = 'zoom'; // Zoom out first (position stays constant)
+        movementAnimationStartTime = performance.now();
+        isAnimatingMovement = true;
+        animateMovement();
+        return; // Will continue to target position after reset completes
     }
     
     // Store starting values
@@ -643,9 +692,20 @@ function render() {
     // This keeps performance good at normal zoom levels
     const useHighPrecision = zoom > 1000.0 ? 1.0 : 0.0;
     
-    // Adaptive iteration count based on zoom for better performance
-    // More iterations needed at higher zoom, but cap it for performance
-    const adaptiveIterations = Math.min(maxIterations, Math.max(100, Math.floor(Math.log(zoom + 1) * 150)));
+    // Adaptive iteration count based on zoom for better performance and quality
+    // More iterations needed at higher zoom to see detail
+    // Scale more aggressively at very high zoom levels
+    let adaptiveIterations;
+    if (zoom > 1000000) {
+        // At 10^6+ zoom, need many iterations
+        adaptiveIterations = Math.min(maxIterations, Math.max(500, Math.floor(Math.log(zoom + 1) * 200)));
+    } else if (zoom > 10000) {
+        // At 10^4+ zoom, moderate iterations
+        adaptiveIterations = Math.min(maxIterations, Math.max(300, Math.floor(Math.log(zoom + 1) * 180)));
+    } else {
+        // Lower zoom, fewer iterations
+        adaptiveIterations = Math.min(maxIterations, Math.max(100, Math.floor(Math.log(zoom + 1) * 150)));
+    }
     
     // Set uniforms
     gl.uniform2f(resolutionLocation, width, height);
@@ -783,6 +843,31 @@ window.addEventListener('keydown', (event) => {
         saveLocation();
     }
     
+    // Copy cursor position with 'C' key (formatted for text-labels.js)
+    if (event.key === 'c' || event.key === 'C') {
+        // Format as text-labels.js entry with all fields
+        const labelJson = `    {
+        text: 'Label Text',
+        x: ${cursorFractalX},
+        y: ${cursorFractalY},
+        zoom: ${zoom},
+        color: '#000000',
+        opacity: 1.0
+    }`;
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(labelJson).then(() => {
+            // Visual feedback
+            console.log('Copied cursor position to clipboard!');
+            console.log('Paste this into text-labels.js:');
+            console.log(labelJson);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            // Fallback: show in alert
+            alert('Cursor Position (copy this):\n\n' + labelJson);
+        });
+    }
+    
     // Number keys 0-9 to navigate to pos0, pos1, pos2, etc.
     if (event.key >= '0' && event.key <= '9') {
         const posNumber = parseInt(event.key);
@@ -873,31 +958,58 @@ function animateIterations() {
 }
 
 // Black overlay click handler
-const blackOverlay = document.getElementById('blackOverlay');
-blackOverlay.addEventListener('click', () => {
-    // Remove the overlay
-    blackOverlay.style.display = 'none';
+function setupBlackOverlay() {
+    const blackOverlay = document.getElementById('blackOverlay');
+    if (!blackOverlay) {
+        console.error('Black overlay element not found!');
+        return;
+    }
     
-    // Reset animation state and start
-    isAnimatingIterations = true;
-    iterationAnimationStartTime = performance.now();
-    maxIterations = 1;
+    // Remove any existing listeners by using a one-time handler flag
+    if (blackOverlay.dataset.listenerAttached) {
+        return; // Already set up
+    }
+    blackOverlay.dataset.listenerAttached = 'true';
     
-    // Initial render with 1 iteration
-    render();
+    const handleClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove the overlay
+        blackOverlay.style.display = 'none';
+        
+        // Reset animation state and start
+        isAnimatingIterations = true;
+        iterationAnimationStartTime = performance.now();
+        maxIterations = 1;
+        
+        // Initial render with 1 iteration
+        render();
+        
+        // Start iteration animation
+        animateIterations();
+        
+        // Start text fade-in animation 0.5 seconds after click
+        setTimeout(() => {
+            if (!isFadingInText) {
+                isFadingInText = true;
+                textFadeStartTime = performance.now();
+                animateTextFadeIn();
+            }
+        }, 500);
+    };
     
-    // Start iteration animation
-    animateIterations();
-    
-    // Start text fade-in animation 0.5 seconds after click
-    setTimeout(() => {
-        if (!isFadingInText) {
-            isFadingInText = true;
-            textFadeStartTime = performance.now();
-            animateTextFadeIn();
-        }
-    }, 500);
-});
+    blackOverlay.addEventListener('click', handleClick);
+    blackOverlay.addEventListener('mousedown', handleClick);
+}
+
+// Set up overlay when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupBlackOverlay);
+} else {
+    // DOM already loaded
+    setupBlackOverlay();
+}
 
 // Copy position button functionality
 const copyPositionBtn = document.getElementById('copyPositionBtn');
