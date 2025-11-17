@@ -71,6 +71,38 @@
         #copyPositionBtn:active {
             background-color: rgba(200, 200, 200, 0.8);
         }
+        #navBar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 20px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+        .navButton {
+            padding: 6px 14px;
+            background-color: transparent;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 12px;
+            color: #000000;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .navButton:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        .navButton:active {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -79,6 +111,7 @@
     </div>
     <canvas id="fractalCanvas"></canvas>
     <canvas id="textCanvas"></canvas>
+    <nav id="navBar"></nav>
     <button id="copyPositionBtn" style="display: none;">Copy Position JSON</button>
     <script src="text-labels.js"></script>
     <script src="scene-coordinates.js"></script>

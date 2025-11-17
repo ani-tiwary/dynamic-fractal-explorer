@@ -281,7 +281,8 @@ let showDebugInfo = true; // Temporary debug feature
 // Text fade-in animation state
 let isFadingInText = false;
 let textFadeStartTime = 0;
-let textFadeDuration = 1500; // 1.5 seconds fade-in
+let textFadeDuration = 750; 
+let currentFadingLabelIndex = 0; // Track which label is currently fading in
 
 // Debug mode
 let debugMode = false;
@@ -904,7 +905,7 @@ window.addEventListener('resize', () => {
     render();
 });
 
-// Animate text fade-in
+// Animate text fade-in (sequential - one label after another)
 function animateTextFadeIn() {
     if (!isFadingInText) return;
     
@@ -915,9 +916,9 @@ function animateTextFadeIn() {
     // Smooth ease-in curve for fade
     const eased = progress * progress; // Simple ease-in
     
-    // Update opacity for welcome text (first label)
-    if (textLabels.length > 0) {
-        textLabels[0].opacity = eased;
+    // Update opacity for current label
+    if (currentFadingLabelIndex < textLabels.length) {
+        textLabels[currentFadingLabelIndex].opacity = eased;
     }
     
     render();
@@ -925,10 +926,21 @@ function animateTextFadeIn() {
     if (progress < 1.0) {
         requestAnimationFrame(animateTextFadeIn);
     } else {
-        isFadingInText = false;
-        // Ensure opacity is exactly 1.0
-        if (textLabels.length > 0) {
-            textLabels[0].opacity = 1.0;
+        // Current label fade complete - ensure opacity is exactly 1.0
+        if (currentFadingLabelIndex < textLabels.length) {
+            textLabels[currentFadingLabelIndex].opacity = 1.0;
+        }
+        
+        // Move to next label if there is one
+        currentFadingLabelIndex++;
+        if (currentFadingLabelIndex < textLabels.length && textLabels[currentFadingLabelIndex].opacity === 0) {
+            // Start fading in the next label
+            textFadeStartTime = performance.now();
+            requestAnimationFrame(animateTextFadeIn);
+        } else {
+            // All labels faded in
+            isFadingInText = false;
+            currentFadingLabelIndex = 0; // Reset for next time
         }
         render();
     }
@@ -1000,6 +1012,7 @@ function setupBlackOverlay() {
         setTimeout(() => {
             if (!isFadingInText) {
                 isFadingInText = true;
+                currentFadingLabelIndex = 0; // Start with first label
                 textFadeStartTime = performance.now();
                 animateTextFadeIn();
             }
@@ -1048,6 +1061,35 @@ if (copyPositionBtn) {
             alert('Position:\n\n' + jsObjectString);
         });
     });
+}
+
+// Initialize navigation bar
+function initNavBar() {
+    const navBar = document.getElementById('navBar');
+    if (!navBar) return;
+    
+    // Clear existing buttons
+    navBar.innerHTML = '';
+    
+    // Add buttons for each scene
+    if (typeof sceneCoordinates !== 'undefined' && sceneCoordinates) {
+        sceneCoordinates.forEach(scene => {
+            const button = document.createElement('button');
+            button.className = 'navButton';
+            button.textContent = scene.name;
+            button.addEventListener('click', () => {
+                smoothMoveTo(scene.name);
+            });
+            navBar.appendChild(button);
+        });
+    }
+}
+
+// Initialize navigation bar when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNavBar);
+} else {
+    initNavBar();
 }
 
 // Don't start animation automatically - wait for click
