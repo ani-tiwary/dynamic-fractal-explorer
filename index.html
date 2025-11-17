@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Fractal Explorer</title>
     <style>
+        @font-face {
+            font-family: 'Manrope';
+            src: url('Manrope/static/Manrope-ExtraLight.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
         body {
             margin: 0;
             overflow: hidden;
@@ -19,10 +25,63 @@
             top: 0;
             left: 0;
         }
+        #textCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #blackOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            z-index: 9999;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #blackOverlay img {
+            width: 32px;
+            height: auto;
+            filter: invert(1);
+        }
+        #copyPositionBtn {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            padding: 6px 12px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 100;
+            color: #000000;
+            transition: background-color 0.2s;
+        }
+        #copyPositionBtn:hover {
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+        #copyPositionBtn:active {
+            background-color: rgba(200, 200, 200, 0.8);
+        }
     </style>
 </head>
 <body>
+    <div id="blackOverlay">
+        <img src="cursor.png" alt="Cursor">
+    </div>
     <canvas id="fractalCanvas"></canvas>
-    <script src = "script.js"></script>
+    <canvas id="textCanvas"></canvas>
+    <button id="copyPositionBtn" style="display: none;">Copy Position JSON</button>
+    <script src="text-labels.js"></script>
+    <script src="scene-coordinates.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
