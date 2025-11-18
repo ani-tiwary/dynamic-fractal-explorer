@@ -619,6 +619,9 @@ function renderText() {
             screenPos.y > -100 && screenPos.y < height + 100) {
             textCtx.font = `${fontSizePixels}px Manrope`;
             
+            // Set text alignment (default to 'center' if not specified)
+            textCtx.textAlign = label.align || 'center';
+            
             // Convert hex color to rgba with opacity
             const opacity = label.opacity !== undefined ? label.opacity : 1.0;
             const hex = label.color.replace('#', '');
@@ -628,6 +631,9 @@ function renderText() {
             textCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
             
             textCtx.fillText(label.text, screenPos.x, screenPos.y);
+            
+            // Reset to center for next label (unless it specifies otherwise)
+            textCtx.textAlign = 'center';
         }
     });
     

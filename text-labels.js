@@ -30,21 +30,14 @@ var textLabels = [
         opacity: 1.0
     },
     {
-        text: 'i swear',
+        text: 'i promise',
         x: 3092.0371654706514,
         y: 21.470043264412567,
         zoom: 0.0003719902223602988,
         color: '#000000',
         opacity: 1.0
-    },
-    {
-        text: 'Label Text',
-        x: -0.6617573859309394,
-        y: 0.4628047010576998,
-        zoom: 6252.914748397133,
-        color: '#000000',
-        opacity: 1.0
     }
+    // Note: Resume section is now defined in text-components.js
     // Add more text labels here as needed
 ];
 
